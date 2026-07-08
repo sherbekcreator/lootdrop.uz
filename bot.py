@@ -565,15 +565,18 @@ def unban_user(message):
         bot.reply_to(message, f"✅ Blokdan yechildi! ID: {target_id}")
     except Exception: bot.reply_to(message, "To'g'ri usul: /unban ID raqami")
 
-update_rating_json()
-print("💎 LootTap Bot V6.0 ishga tushdi! Baza va Kassa tizimi ulandi...")
+# BOTNI ALOHIDA OQIMDA ISHGA TUSHIRAMIZ
+def run_bot():
+    print("💎 Bot polling boshlanmoqda...")
+    bot.infinity_polling(skip_pending=True)
 
-Thread(target=rating_auto_updater, daemon=True).start()
-keep_alive()
-
-try:
-    bot.remove_webhook()
-    time.sleep(1)
-except Exception: pass
-
-bot.infinity_polling(skip_pending=True)
+if __name__ == '__main__':
+    # 1. Baza yangilovchini ishga tushiramiz
+    Thread(target=rating_auto_updater, daemon=True).start()
+    
+    # 2. Botni alohida ishga tushiramiz
+    Thread(target=run_bot, daemon=True).start()
+    
+    # 3. Flask serverini ishga tushiramiz (Render uchun)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
