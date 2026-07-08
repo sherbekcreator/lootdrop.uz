@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LootTap Web App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #0d1117; color: #ffffff; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        .app-tab { display: none; width: 100%; height: 100%; flex-direction: column; overflow-y: auto; }
+        .app-tab::after { content: ""; display: block; min-height: 100px; flex-shrink: 0; }
+        .app-tab.active { display: flex; }
+        
+        .header { flex-shrink: 0; padding: 20px; text-align: center; z-index: 10; border-bottom: 1px solid #30363d; background: #161b22; }
+        .user-info { font-size: 14px; color: #8b949e; margin-bottom: 10px; font-weight: bold; text-transform: uppercase; }
+        .balance-container { display: flex; justify-content: center; align-items: center; gap: 10px; font-size: 36px; font-weight: bold; }
+        .balance-icon { width: 40px; height: 40px; background: linear-gradient(135deg, #ffd700, #ffaa00); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 0 15px rgba(255, 215, 0, 0.4); }
+        
+        .page-header { text-align: center; padding: 20px; border-bottom: 1px solid #30363d; margin-bottom: 10px; }
+        .page-header h2 { font-size: 20px; margin-bottom: 5px; color: #fff; }
+        .page-header p { font-size: 13px; color: #8b949e; }
+        
+        /* OMAD G'ILDIRAGI */
+        .spin-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; flex-grow: 1; padding: 20px; }
+        .wheel-container { position: relative; width: 280px; height: 280px; flex-shrink: 0; margin-bottom: 25px; }
+        .roulette-wheel { width: 100%; height: 100%; border-radius: 50%; border: 4px solid #fff; box-shadow: 0 0 30px rgba(46, 160, 67, 0.3); position: relative; overflow: hidden; transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99); transform: rotate(0deg); background: conic-gradient( #2ea043 0deg 45deg, #000 45deg 90deg, #fff 90deg 135deg, #000 135deg 180deg, #2ea043 180deg 225deg, #000 225deg 270deg, #fff 270deg 315deg, #000 315deg 360deg ); }
+        .wheel-text { position: absolute; width: 50%; height: 20px; top: calc(50% - 10px); left: 50%; transform-origin: left center; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: flex-end; padding-right: 30px; font-family: Arial, sans-serif; white-space: nowrap; }
+        .wheel-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; background: #161b22; border-radius: 50%; border: 3px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #fff; z-index: 5; box-shadow: inset 0 0 10px #000; }
+        .wheel-pointer { position: absolute; top: 50%; right: -25px; transform: translateY(-50%); width: 0; height: 0; border-top: 15px solid transparent; border-bottom: 15px solid transparent; border-left: 30px solid #e74c3c; z-index: 4; filter: drop-shadow(2px 0 2px rgba(0,0,0,0.5)); }
+        
+        .spin-btn-active { background: linear-gradient(90deg, #2ea043, #238636); color: #ffffff; padding: 15px 30px; border-radius: 12px; font-weight: bold; font-size: 18px; border: none; cursor: pointer; width: 90%; transition: 0.2s; box-shadow: 0 5px 15px rgba(46, 160, 67, 0.4); text-transform: uppercase; }
+        .spin-btn-active:active { transform: scale(0.95); }
+        .spin-btn-disabled { background-color: #30363d; color: #8b949e; padding: 15px 10px; border-radius: 12px; font-weight: bold; font-size: 16px; border: none; width: 90%; }
+        
+        .pity-container { width: 90%; margin-top: 15px; text-align: center; background: #161b22; padding: 10px; border-radius: 8px; border: 1px solid #30363d; }
+        .pity-text { font-size: 13px; font-weight: bold; color: #ffaa00; margin-bottom: 5px; }
+        .pity-bar-bg { width: 100%; height: 8px; background-color: #0d1117; border-radius: 4px; overflow: hidden; }
+        .pity-bar-fill { height: 100%; background-color: #ffaa00; width: 0%; transition: width 0.5s ease; box-shadow: 0 0 10px #ffaa00; }
+
+        /* KEYSLAR (CS2 STYLE) */
+        .case-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 0 20px; margin-bottom: 20px; }
+        .case-card { background: linear-gradient(180deg, #161b22 0%, #0d1117 100%); border: 2px solid #30363d; border-radius: 12px; padding: 15px; text-align: center; position: relative; overflow: hidden; }
+        .case-card.rare { border-color: #ffaa00; box-shadow: 0 0 15px rgba(255, 170, 0, 0.1); }
+        .case-card.epic { border-color: #8a2be2; box-shadow: 0 0 15px rgba(138, 43, 226, 0.1); }
+        .case-card.legendary { border-color: #ff0055; box-shadow: 0 0 15px rgba(255, 0, 85, 0.1); }
+        .case-img { font-size: 40px; margin-bottom: 10px; filter: drop-shadow(0 0 10px rgba(255,255,255,0.2)); }
+        .case-title { font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #fff; }
+        .case-desc { font-size: 11px; color: #8b949e; margin-bottom: 10px; line-height: 1.3; }
+        .case-price { background-color: #2ea043; color: white; padding: 8px; border-radius: 8px; font-weight: bold; font-size: 13px; border: none; width: 100%; cursor: pointer; transition: 0.2s; }
+        .case-price:active { transform: scale(0.95); }
+
+        .cs2-roulette-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(13, 17, 23, 0.95); z-index: 3000; display: none; flex-direction: column; justify-content: center; align-items: center; }
+        .cs2-title { font-size: 20px; font-weight: bold; color: #fff; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
+        .cs2-container { width: 90%; max-width: 400px; height: 140px; background: #161b22; border: 2px solid #30363d; border-radius: 12px; position: relative; overflow: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 0 20px rgba(46, 160, 67, 0.2); }
+        .cs2-center-line { position: absolute; left: 50%; top: 0; height: 100%; width: 2px; background-color: #ffaa00; z-index: 10; transform: translateX(-50%); box-shadow: 0 0 10px #ffaa00; }
+        .cs2-center-line::before, .cs2-center-line::after { content: ''; position: absolute; left: -6px; width: 14px; height: 14px; background: #ffaa00; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
+        .cs2-center-line::before { top: 0; transform: rotate(180deg); }
+        .cs2-center-line::after { bottom: 0; }
+        
+        .cs2-strip { display: flex; height: 100%; align-items: center; padding-left: calc(50% - 50px); transition: transform 6s cubic-bezier(0.1, 0.8, 0.1, 1); transform: translateX(0); }
+        .cs2-item { width: 100px; height: 100px; margin: 0 5px; flex-shrink: 0; background: #0d1117; border: 2px solid; border-radius: 8px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 5px; text-align: center; }
+        .cs2-item.tier-3 { border-color: #3498db; background: linear-gradient(180deg, rgba(52,152,219,0.1) 0%, transparent 100%); }
+        .cs2-item.tier-5 { border-color: #8a2be2; background: linear-gradient(180deg, rgba(138,43,226,0.1) 0%, transparent 100%); }
+        .cs2-item.tier-7 { border-color: #ff0055; background: linear-gradient(180deg, rgba(255,0,85,0.1) 0%, transparent 100%); }
+        .cs2-item.tier-8 { border-color: #ffaa00; background: linear-gradient(180deg, rgba(255,170,0,0.1) 0%, transparent 100%); }
+        .cs2-item.loot { border-color: #2ea043; background: linear-gradient(180deg, rgba(46,160,67,0.1) 0%, transparent 100%); }
+        .cs2-item.uc-item { border-color: #e74c3c; background: linear-gradient(180deg, rgba(231,76,60,0.1) 0%, transparent 100%); }
+        .cs2-item-icon { font-size: 35px; margin-bottom: 5px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.3)); }
+        .cs2-item-name { font-size: 11px; font-weight: bold; color: #fff; }
+
+        /* INVENTAR QISMI */
+        .inv-header-mats { background-color: #161b22; margin: 0 20px 20px 20px; padding: 15px; border-radius: 12px; border: 1px solid #30363d; display: flex; justify-content: space-around; align-items: center; }
+        .mat-item { text-align: center; }
+        .mat-item h4 { font-size: 20px; color: #ffd700; margin-bottom: 5px; }
+        .mat-item p { font-size: 11px; color: #8b949e; font-weight: bold; text-transform: uppercase; }
+        .mat-convert-btn { background-color: #2ea043; color: white; border: none; padding: 10px 15px; border-radius: 8px; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .mat-convert-btn:active { transform: scale(0.95); }
+        .inv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 0 20px; margin-bottom: 20px; }
+        .inv-card { background-color: #161b22; border: 2px solid #30363d; border-radius: 12px; padding: 15px; text-align: center; cursor: pointer; position: relative; transition: 0.2s; }
+        .inv-card:active { transform: scale(0.97); }
+        .inv-card.tier-3 { border-top-color: #3498db; }
+        .inv-card.tier-5 { border-top-color: #8a2be2; }
+        .inv-card.tier-7 { border-top-color: #ff0055; }
+        .inv-card.tier-8 { border-top-color: #ffaa00; }
+        .inv-gun-name { font-size: 13px; font-weight: bold; margin: 10px 0 5px 0; }
+        .inv-gun-lvl { font-size: 11px; color: #8b949e; }
+        .inv-badge { position: absolute; top: -10px; right: -10px; background-color: #e74c3c; color: white; width: 25px; height: 25px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 12px; font-weight: bold; border: 2px solid #0d1117; }
+        .inv-empty { text-align: center; padding: 40px 20px; color: #8b949e; font-size: 14px; }
+        .inv-empty .inv-icon { font-size: 40px; color: #30363d; margin-bottom: 10px; }
+
+        /* VAZIFALAR VA QOLGAN ELEMENTLAR */
+        .task-card { background-color: #161b22; border-radius: 12px; padding: 15px; margin: 0 20px 12px 20px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #30363d; transition: all 0.3s ease;}
+        .task-left { display: flex; align-items: center; gap: 15px; }
+        .task-icon-circle { width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 18px; color: white; }
+        .task-info h4 { font-size: 15px; margin-bottom: 4px; }
+        .task-info p { font-size: 13px; color: #ffd700; font-weight: bold; }
+        .task-go-btn { padding: 6px 0; border-radius: 8px; display: flex; justify-content: center; align-items: center; color: white; border: none; cursor: pointer; transition: 0.2s; font-weight: bold; font-size: 12px;}
+        .task-go-btn:disabled { background-color: #30363d; color: #8b949e; cursor: not-allowed; }
+
+        .uc-form { padding: 0 20px; margin-top: 10px; }
+        .shop-section-title { font-size: 14px; color: #8b949e; margin-bottom: 12px; font-weight: bold; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+        .uc-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .uc-box { position: relative; background-color: #161b22; border: 2px solid #30363d; border-radius: 12px; padding: 15px 12px; text-align: left; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; }
+        .uc-box.active { border-color: #2ea043; background-color: rgba(46, 160, 67, 0.1); }
+        .pkg-tier { font-size: 12px; color: #8b949e; font-weight: bold; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .pkg-amount { font-size: 20px; color: #ffffff; font-weight: 900; margin-bottom: 2px; }
+        .pkg-cost { font-size: 11px; color: #8b949e; }
+        .active-check { position: absolute; bottom: 10px; right: 10px; width: 22px; height: 22px; background-color: #2ea043; border-radius: 50%; display: none; justify-content: center; align-items: center; color: #ffffff; font-size: 12px; font-weight: bold; }
+        .uc-box.active .active-check { display: flex; }
+
+        .input-group { margin-bottom: 15px; }
+        .input-group input { width: 100%; background-color: #161b22; border: 1px solid #30363d; color: white; padding: 15px; border-radius: 10px; font-size: 14px; outline: none; }
+        .input-group input:focus { border-color: #2ea043; }
+        .submit-btn { width: 100%; background-color: #2ea043; color: white; padding: 15px; border-radius: 10px; font-size: 16px; font-weight: bold; border: none; margin-top: 10px; cursor: pointer; transition: 0.2s; }
+        .submit-btn:active { transform: scale(0.98); }
+
+        .red-btn { background-color: #e74c3c; color: white; border-radius: 12px; padding: 14px; margin: 0 20px 15px 20px; font-weight: bold; font-size: 15px; border: none; text-align: center; cursor: pointer; display: block; width: calc(100% - 40px); box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4); transition: 0.2s; }
+        .red-btn:active { transform: scale(0.97); }
+
+        .invite-btn { background-color: #2ea043; color: white; border-radius: 12px; padding: 16px; margin: 10px 20px 10px 20px; font-weight: bold; font-size: 16px; border: none; text-align: center; cursor: pointer; display: block; width: calc(100% - 40px); }
+        .ref-rule { background-color: rgba(255, 215, 0, 0.1); border: 1px solid #ffaa00; padding: 10px; margin: 0 20px 15px 20px; border-radius: 8px; font-size: 12px; color: #ffd700; text-align: center; }
+        .ref-box { display: flex; justify-content: space-between; align-items: center; background-color: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 15px; margin: 0 20px 10px 20px; transition: 0.2s; cursor: pointer;}
+        .ref-box.active { border-color: #2ea043; background-color: rgba(46, 160, 67, 0.1); }
+        .ref-info h3 { font-size: 16px; color: white; }
+        .ref-info p { font-size: 12px; color: #8b949e; margin-top: 3px; }
+        .ref-cost { background-color: #2ea043; color: white; padding: 5px 10px; border-radius: 8px; font-weight: bold; font-size: 14px; }
+
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; display: flex; justify-content: space-between; background-color: #161b22; padding: 12px 5px 20px 5px; border-top: 1px solid #30363d; z-index: 1000; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: #8b949e; font-size: 10px; cursor: pointer; width: 14%; gap: 4px; font-weight: 500; transition: 0.2s; }
+        .nav-item.active { color: #2ea043; transform: translateY(-2px); }
+        .nav-icon { font-size: 20px; }
+
+        .toast-notification { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); background-color: #2ea043; color: white; padding: 12px 25px; border-radius: 30px; font-weight: bold; z-index: 4000; transition: bottom 0.4s; white-space: nowrap; font-size: 14px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(13, 17, 23, 0.9); z-index: 3500; display: none; opacity: 0; transition: opacity 0.3s; }
+        .overlay.show { opacity: 1; display: block; }
+
+        .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); background-color: #161b22; border: 1px solid #30363d; border-radius: 16px; z-index: 4000; width: 90%; max-width: 350px; padding: 25px; display: none; opacity: 0; transition: all 0.3s; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        .modal.show { display: block; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        .modal-close { background-color: #30363d; color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; font-weight: bold; margin-top: 15px; cursor: pointer; }
+        .modal-action { color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; font-weight: bold; margin-top: 10px; cursor: pointer; transition: 0.2s; }
+        .modal-action:active { transform: scale(0.95); }
+        
+        .drop-item { display: inline-block; background: #0d1117; border: 2px solid #2ea043; padding: 10px; border-radius: 12px; margin: 5px; font-size: 13px; font-weight: bold; color: #fff; width: 45%; }
+        .drop-container { margin: 15px 0; max-height: 300px; overflow-y: auto; }
+        
+        /* TOP-UP (KASSA) BUTTONS */
+        .topup-grid { display: grid; grid-template-columns: 1fr; gap: 10px; padding: 0 20px; margin-bottom: 20px; }
+        .topup-btn { background-color: #161b22; border: 2px solid #2ea043; border-radius: 12px; padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s; }
+        .topup-btn:active { transform: scale(0.97); background-color: rgba(46, 160, 67, 0.1); }
+        .topup-uzs { font-weight: bold; color: #fff; font-size: 16px; }
+        .topup-loot { color: #ffd700; font-weight: bold; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="user-info" id="username">O'yinchi</div>
+        <div class="balance-container">
+            <div class="balance-icon">💎</div>
+            <span id="score">0</span>
+        </div>
+    </div>
+
+    <!-- 1. BOSH SAHIFA (OMAD G'ILDIRAGI) -->
+    <div id="tab-main" class="app-tab active">
+        <div class="page-header">
+            <h2>Omad G'ildiragi</h2>
+            <p>Har 24 soatda tekinga aylantiring va Loot yutib oling!</p>
+        </div>
+        
+        <div class="spin-wrapper">
+            <div class="wheel-container">
+                <div class="roulette-wheel" id="wheel">
+                    <div class="wheel-text-container">
+                        <div class="wheel-text" style="transform: rotate(22.5deg); color: #111;">300k loot</div>
+                        <div class="wheel-text" style="transform: rotate(67.5deg); color: #fff;">100k loot</div>
+                        <div class="wheel-text" style="transform: rotate(112.5deg); color: #111;">200k loot</div>
+                        <div class="wheel-text" style="transform: rotate(157.5deg); color: #fff;">100k loot</div>
+                        <div class="wheel-text" style="transform: rotate(202.5deg); color: #111;">300k loot</div>
+                        <div class="wheel-text" style="transform: rotate(247.5deg); color: #fff;">100k loot</div>
+                        <div class="wheel-text" style="transform: rotate(292.5deg); color: #111;">200k loot</div>
+                        <div class="wheel-text" style="transform: rotate(337.5deg); color: #fff;">100k loot</div>
+                    </div>
+                </div>
+                <div class="wheel-center">LootTap<div class="wheel-pointer"></div></div>
+            </div>
+            
+            <button id="spinActionBtn" class="spin-btn-active" onclick="startSpin()">Aylantirish</button>
+            
+            <div class="pity-container">
+                <div class="pity-text" id="spinChanceText">🔥 Katta yutuq foizi: 10%</div>
+                <div class="pity-bar-bg">
+                    <div class="pity-bar-fill" id="spinChanceBar"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. O'TKAZMA VA KASSA -->
+    <div id="tab-transfer" class="app-tab">
+        <div class="page-header">
+            <h2>💸 O'tkazma va Kassa</h2>
+            <p>Balansni to'ldirish, Promokod va Transfer</p>
+        </div>
+        
+        <!-- PROMOKOD -->
+        <div class="uc-form" style="margin-bottom: 20px;">
+            <div class="shop-section-title">🎁 PROMOKOD FAKOLASHTIRISH</div>
+            <div class="input-group">
+                <input type="text" placeholder="Maxfiy kodni kiriting" id="promo-code" style="text-transform: uppercase;">
+            </div>
+            <button class="submit-btn" onclick="activatePromo()">Faollashtirish</button>
+        </div>
+
+        <!-- BALANS TO'LDIRISH -->
+        <div class="shop-section-title" style="padding: 0 20px;">💳 BALANSNI TO'LDIRISH (UZS)</div>
+        <div class="topup-grid">
+            <div class="topup-btn" onclick="buyLootPackage(5000)">
+                <span class="topup-uzs">5,000 UZS</span>
+                <span class="topup-loot">💎 5,000,000 Loot</span>
+            </div>
+            <div class="topup-btn" onclick="buyLootPackage(10000)">
+                <span class="topup-uzs">10,000 UZS</span>
+                <span class="topup-loot">💎 12,000,000 Loot</span>
+            </div>
+            <div class="topup-btn" onclick="buyLootPackage(50000)">
+                <span class="topup-uzs">50,000 UZS</span>
+                <span class="topup-loot">💎 70,000,000 Loot</span>
+            </div>
+        </div>
+
+        <!-- TRANSFER -->
+        <div class="uc-form">
+            <div class="shop-section-title">🤝 DO'STLARGA O'TKAZMA (Kunda 1 marta)</div>
+            <div style="background-color: #0d1117; padding: 10px; border-radius: 8px; margin-bottom: 15px; text-align: center; border: 1px solid #30363d;">
+                <p style="color: #8b949e; font-size: 11px;">Sizning ID raqamingiz:</p>
+                <h3 style="color: #ffd700;" id="myTransferId">Yuklanmoqda...</h3>
+            </div>
+            <div class="input-group">
+                <input type="number" placeholder="Do'stingizning ID raqami" id="transfer-target-id">
+            </div>
+            <div class="input-group">
+                <input type="number" placeholder="Miqdor (100k dan 500k gacha)" id="transfer-amount">
+            </div>
+            <button class="submit-btn" onclick="requestTransfer()">💸 Jo'natish</button>
+            <p style="text-align: center; color: #8b949e; font-size: 11px; margin-top: 15px;">⚠️ Diqqat: O'tkazmalar kuzatiladi. Nakrutka qilgan akkauntlar bloklanadi!</p>
+        </div>
+    </div>
+
+    <!-- 3. KEYSLAR -->
+    <div id="tab-cases" class="app-tab">
+        <div class="page-header">
+            <h2>📦 Omadli Keyslar</h2>
+            <p>Qurol qismlari va Mega yutuqlar</p>
+        </div>
+        
+        <div class="case-grid">
+            <div class="case-card">
+                <div class="case-img">💰</div>
+                <div class="case-title">1-Keys: Sof Loot</div>
+                <div class="case-desc">Kafolatlangan min: 4M Loot. <br>Maks: 6M Loot.</div>
+                <button class="case-price" onclick="openCS2Case(1, 4000000)">4,000,000</button>
+            </div>
+            
+            <div class="case-card">
+                <div class="case-img">🔫</div>
+                <div class="case-title">2-Keys: 3-Lvl Qurol</div>
+                <div class="case-desc">Ichida: 3-Levelgacha bo'lgan oddiy qurollar</div>
+                <button class="case-price" onclick="openCS2Case(2, 1500000)">1,500,000</button>
+            </div>
+            
+            <div class="case-card rare">
+                <div class="case-img">🔫</div>
+                <div class="case-title">3-Keys: 5-Lvl Qurol</div>
+                <div class="case-desc">Ichida: 5-Levelgacha bo'lgan noyob qurollar</div>
+                <button class="case-price" onclick="openCS2Case(3, 3000000)">3,000,000</button>
+            </div>
+            
+            <div class="case-card epic">
+                <div class="case-img">🔥</div>
+                <div class="case-title">4-Keys: 7-Lvl Qurol</div>
+                <div class="case-desc">Ichida: 7-Levelgacha bo'lgan dostoniy qurollar</div>
+                <button class="case-price" onclick="openCS2Case(4, 4000000)">4,000,000</button>
+            </div>
+            
+            <div class="case-card epic">
+                <div class="case-img">🎒</div>
+                <div class="case-title">5-Keys: 8-Lvl Qurol</div>
+                <div class="case-desc">Ichida: Maksimal darajali mifik qurollar</div>
+                <button class="case-price" onclick="openCS2Case(5, 5000000)">5,000,000</button>
+            </div>
+            
+            <div class="case-card legendary">
+                <div class="case-img">💎</div>
+                <div class="case-title">6-Keys: FULL LEVEL</div>
+                <div class="case-desc">Min: 5.1M Loot. Max: Tayyor Full Qurol Jekpoti!</div>
+                <button class="case-price" onclick="openCS2Case(6, 5500000)">5,500,000</button>
+            </div>
+            
+            <div class="case-card legendary" style="grid-column: span 2;">
+                <div class="case-img">🏆</div>
+                <div class="case-title">7-Keys: SOF UC JEKPOT</div>
+                <div class="case-desc">Min: 6M Loot. Max: 60 - 325 UC gacha yutib olish imkoniyati.</div>
+                <button class="case-price" style="background-color: #e74c3c;" onclick="openCS2Case(7, 7000000)">7,000,000</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. INVENTAR -->
+    <div id="tab-inv" class="app-tab">
+        <div class="page-header">
+            <h2>🎒 Inventar</h2>
+            <p>Qurollarni kuchaytiring va soting</p>
+        </div>
+        
+        <div class="inv-header-mats">
+            <div class="mat-item">
+                <h4 id="matMiniCount">0</h4>
+                <p>Kichik Material</p>
+            </div>
+            <div class="mat-item">
+                <button class="mat-convert-btn" onclick="craftBigMaterial()">10 ➜ 1</button>
+            </div>
+            <div class="mat-item">
+                <h4 id="matBigCount">0</h4>
+                <p>Katta Material</p>
+            </div>
+        </div>
+
+        <div id="invGrid" class="inv-grid"></div>
+        
+        <div id="invEmpty" class="inv-empty" style="display: none;">
+            <div class="inv-icon"><i class="fa-solid fa-box-open"></i></div>
+            <h3>Sizda hali qurollar yo'q</h3>
+            <p style="margin-top: 10px;">Keyslarni oching va bu yerda qurollaringizni kuchaytiring!</p>
+        </div>
+    </div>
+
+    <!-- 5. DO'STLAR -->
+    <div id="tab-friends" class="app-tab">
+        <div class="page-header" style="border: none; padding-bottom: 0;">
+            <div style="font-size: 60px; margin-bottom: 10px;">🤝</div>
+            <h2>Do'stlaringizni taklif qiling!</h2>
+            <p>Do'stlar to'plab, tekinga o'yin valyutasini oling!</p>
+        </div>
+        <button class="invite-btn" onclick="copyRefLink()">📲 Havolani ulashish (Do'stlarga jo'natish)</button>
+        <div class="ref-rule">
+            ⚠️ <b>QOIDA:</b> Firibgarlikni oldini olish uchun yutuq olishda hisobingizda kamida <b>5,000,000 Loot</b> bo'lishi shart! (Lootingiz yechilmaydi)
+        </div>
+        
+        <div class="ref-box active" onclick="selectRefItem(this, 45, '200k Loot')"><div class="ref-info"><h3>200k Loot</h3></div><div class="ref-cost">👥 45 ta do'st</div></div>
+        <div class="ref-box" onclick="selectRefItem(this, 85, '400k Loot')"><div class="ref-info"><h3>400k Loot</h3></div><div class="ref-cost">👥 85 ta do'st</div></div>
+        <div class="ref-box" onclick="selectRefItem(this, 130, '700k Loot')"><div class="ref-info"><h3>700k Loot</h3></div><div class="ref-cost">👥 130 ta do'st</div></div>
+        <div class="ref-box" onclick="selectRefItem(this, 230, '1.5M Loot')"><div class="ref-info"><h3>1.5M Loot</h3></div><div class="ref-cost">👥 230 ta do'st</div></div>
+        
+        <div class="uc-form">
+            <button class="submit-btn" onclick="requestRefWithdraw('uc')" style="margin-top: 0;">Lootni olish</button>
+        </div>
+    </div>
+
+    <!-- 6. DO'KON -->
+    <div id="tab-shop" class="app-tab">
+        <div class="page-header">
+            <h2>UC Do'koni (Loot orqali)</h2>
+            <p>Lootlarni PUBG UC ga almashtiring</p>
+        </div>
+        
+        <button class="red-btn" onclick="openModal('rulesModal')">❓ QANDAY QILIB UC OLINADI?</button>
+        
+        <div class="uc-form">
+            <div class="shop-section-title">📦 UC Paket tanlang (-30% SKIDKA)</div>
+            <div class="uc-options">
+                <div class="uc-box active" onclick="selectItem(this, 4200000, 'uc')">
+                    <div class="pkg-tier">Starter <span></span></div>
+                    <div class="pkg-amount">60 UC</div>
+                    <div class="pkg-cost">4.2 mln loot</div>
+                    <div class="active-check"><i class="fa-solid fa-check"></i></div>
+                </div>
+                <div class="uc-box" onclick="selectItem(this, 8400000, 'uc')">
+                    <div class="pkg-tier">Popular <span>🔥</span></div>
+                    <div class="pkg-amount">130 UC</div>
+                    <div class="pkg-cost">8.4 mln loot</div>
+                    <div class="active-check"><i class="fa-solid fa-check"></i></div>
+                </div>
+                <div class="uc-box" onclick="selectItem(this, 21000000, 'uc')">
+                    <div class="pkg-tier">Pro <span></span></div>
+                    <div class="pkg-amount">325 UC</div>
+                    <div class="pkg-cost">21 mln loot</div>
+                    <div class="active-check"><i class="fa-solid fa-check"></i></div>
+                </div>
+                <div class="uc-box" onclick="selectItem(this, 42000000, 'uc')">
+                    <div class="pkg-tier">Elite <span>👑</span></div>
+                    <div class="pkg-amount">660 UC</div>
+                    <div class="pkg-cost">42 mln loot</div>
+                    <div class="active-check"><i class="fa-solid fa-check"></i></div>
+                </div>
+            </div>
+            <div class="input-group"><input type="number" placeholder="PUBG ID" id="uc-id"></div>
+            <div class="input-group"><input type="text" placeholder="PUBG NIK" id="uc-nick"></div>
+            <button class="submit-btn" onclick="requestWithdraw('uc')">Tasdiqlash</button>
+        </div>
+    </div>
+
+    <!-- 7. VAZIFALAR -->
+    <div id="tab-tasks" class="app-tab">
+        <div class="page-header">
+            <h2>Vazifalar</h2>
+            <p>Maxsus topshiriqlar bajarib loot oling</p>
+        </div>
+        <div class="section-title">Ijtimoiy Tarmoqlar</div>
+        <div id="tasks-container">
+            <div class="task-card" id="task-ytibodmash">
+                <div class="task-left">
+                    <div class="task-icon-circle" style="background: rgba(255,0,0,0.1); color: #ff0000;"><i class="fa-brands fa-youtube"></i></div>
+                    <div class="task-info">
+                        <div class="task-text"><h4>IBOD MASHENNA (YT)</h4><p>+60,000 loot</p></div>
+                    </div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <button class="task-go-btn" style="width: 90px; background-color: #ff0000;" onclick="goToTask('ytibodmash', 'https://youtube.com/@ibodmashkapubgm?si=EbTppdqyNQu2KBp9')">Obuna</button>
+                    <button class="task-go-btn" style="width: 90px; background-color: #30363d; color: #8b949e;" id="check-ytibodmash-btn" onclick="checkTask('ytibodmash', 60000)">Tekshirish</button>
+                </div>
+            </div>
+
+            <div class="task-card" id="task-ytibodtap">
+                <div class="task-left">
+                    <div class="task-icon-circle" style="background: rgba(255,0,0,0.1); color: #ff0000;"><i class="fa-brands fa-youtube"></i></div>
+                    <div class="task-info">
+                        <div class="task-text"><h4>IBOD TAP (YT)</h4><p>+60,000 loot</p></div>
+                    </div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <button class="task-go-btn" style="width: 90px; background-color: #ff0000;" onclick="goToTask('ytibodtap', 'https://youtube.com/@ibodtap?si=c-X79pYo5t83xx_r')">Obuna</button>
+                    <button class="task-go-btn" style="width: 90px; background-color: #30363d; color: #8b949e;" id="check-ytibodtap-btn" onclick="checkTask('ytibodtap', 60000)">Tekshirish</button>
+                </div>
+            </div>
+
+            <div class="task-card" id="task-insibodmash">
+                <div class="task-left">
+                    <div class="task-icon-circle" style="background: rgba(225,48,108,0.1); color: #E1306C;"><i class="fa-brands fa-instagram"></i></div>
+                    <div class="task-info">
+                        <div class="task-text"><h4>IBOD MASHENNA (INS)</h4><p>+60,000 loot</p></div>
+                    </div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <button class="task-go-btn" style="width: 90px; background-color: #E1306C;" onclick="goToTask('insibodmash', 'https://www.instagram.com/ibodmashennik')">Obuna</button>
+                    <button class="task-go-btn" style="width: 90px; background-color: #30363d; color: #8b949e;" id="check-insibodmash-btn" onclick="checkTask('insibodmash', 60000)">Tekshirish</button>
+                </div>
+            </div>
+
+            <div class="task-card" id="task-insibodmarket">
+                <div class="task-left">
+                    <div class="task-icon-circle" style="background: rgba(225,48,108,0.1); color: #E1306C;"><i class="fa-brands fa-instagram"></i></div>
+                    <div class="task-info">
+                        <div class="task-text"><h4>IBOD MARKET (INS)</h4><p>+60,000 loot</p></div>
+                    </div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <button class="task-go-btn" style="width: 90px; background-color: #E1306C;" onclick="goToTask('insibodmarket', 'https://www.instagram.com/ibod_market')">Obuna</button>
+                    <button class="task-go-btn" style="width: 90px; background-color: #30363d; color: #8b949e;" id="check-insibodmarket-btn" onclick="checkTask('insibodmarket', 60000)">Tekshirish</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALLAR VA OVERLAY -->
+    <div class="overlay" id="overlayBg" onclick="closeAllModals()"></div>
+
+    <!-- CS2 RULETKA EKRANI (HIDDEN) -->
+    <div id="cs2Roulette" class="cs2-roulette-overlay">
+        <div class="cs2-title" id="cs2Title">Keys Ochilmoqda...</div>
+        <div class="cs2-container">
+            <div class="cs2-center-line"></div>
+            <div class="cs2-strip" id="cs2Strip"></div>
+        </div>
+    </div>
+
+    <!-- YUTUQ MODAL -->
+    <div class="modal" id="winModal">
+        <h3 style="color:#ffd700; font-size:22px;">🎉 Tabriklaymiz!</h3>
+        <div id="winContent" style="margin: 20px 0; font-size: 16px; font-weight: bold;"></div>
+        <button class="modal-close" onclick="closeAllModals()">Qabul qilish</button>
+    </div>
+    
+    <!-- QOIDALAR MODAL -->
+    <div class="modal" id="rulesModal">
+        <h3 style="color:#e74c3c;">❓ QANDAY QILIB UC OLINADI?</h3>
+        <p><b>1.</b> O'yinda barabanni aylantirib, vazifalarni bajarib yoki O'tkazma orqali Loot to'plang.</p>
+        <p><b>2.</b> Do'kondan o'zingizga yetadigan paketni tanlang.</p>
+        <p><b>3.</b> PUBG ID va Nikingizni xatosiz kiriting va Tasdiqlashni bosing!</p>
+        <p style="color: #e74c3c; margin-top: 15px;">⏳ Adminlar so'rovingizni tekshiradi va 24 soat ichida hisobingizga UC tashlab beriladi.</p>
+        <p style="color: #ffaa00;">⚠️ <b>QOIDA:</b> Har qanday qalloblik yoki nakrutka aniqlansa, hisobingiz umrbod bloklanadi!</p>
+        <button class="modal-close" onclick="closeAllModals()">Tushundim yopish</button>
+    </div>
+
+    <!-- INVENTAR QUROL MODAL -->
+    <div class="modal" id="gunModal">
+        <h3 id="gmName" style="color:#ffd700; font-size:20px;">Qurol Nomi</h3>
+        <p>Joriy Daraja: <b id="gmLvl">1</b> / <span id="gmMax">8</span></p>
+        <p>Sizda mavjud (ortiqcha): <b id="gmCount" style="color:#ffaa00;">0</b> ta</p>
+        
+        <div style="margin-top:20px;">
+            <button id="gmDismantleBtn" class="modal-action" style="background-color:#e74c3c;" onclick="dismantleGun()">🔥 Pishirish (+3 Kichik Material)</button>
+            <button id="gmUpgradeBtn" class="modal-action" style="background-color:#2ea043;" onclick="upgradeGun()">⬆️ Kuchaytirish (<span id="gmCost">X</span>)</button>
+            <button id="gmClaimBtn" class="modal-action" style="background-color:#ffd700; color:#000; display:none;" onclick="claimMaxGunReward()">🎁 325 UC OLISH</button>
+        </div>
+        <button class="modal-close" onclick="closeAllModals()">Yopish</button>
+    </div>
+
+    <!-- PASTKI MENYU -->
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('tab-main', this)"><div class="nav-icon"><i class="fa-solid fa-house"></i></div>Bosh sahifa</div>
+        <div class="nav-item" onclick="switchTab('tab-transfer', this)"><div class="nav-icon"><i class="fa-solid fa-money-bill-transfer"></i></div>O'tkazma</div>
+        <div class="nav-item" onclick="switchTab('tab-cases', this)"><div class="nav-icon"><i class="fa-solid fa-box-open"></i></div>Keyslar</div>
+        <div class="nav-item" onclick="switchTab('tab-inv', this)"><div class="nav-icon"><i class="fa-solid fa-briefcase"></i></div>Inventar</div>
+        <div class="nav-item" onclick="switchTab('tab-friends', this)"><div class="nav-icon"><i class="fa-solid fa-user-group"></i></div>Do'stlar</div>
+        <div class="nav-item" id="nav-shop" onclick="switchTab('tab-shop', this)"><div class="nav-icon"><i class="fa-solid fa-shop"></i></div>Do'kon</div>
+        <div class="nav-item" onclick="switchTab('tab-tasks', this)"><div class="nav-icon"><i class="fa-solid fa-list-check"></i></div>Vazifalar</div>
+    </div>
+
+    <div id="toastNotification" class="toast-notification"></div>
+
+    <script>
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        let userId = urlParams.get('userid') || tg.initDataUnsafe?.user?.id || "Noma'lum";
+        let userName = tg.initDataUnsafe?.user?.first_name || "O'yinchi";
+        document.getElementById('username').innerText = userName;
+        if(document.getElementById('myTransferId')) document.getElementById('myTransferId').innerText = userId;
+
+        // BAZA: Yutug'lar va O'yinchilar
+        let urlScore = parseInt(urlParams.get('score'));
+        let urlRefs = parseInt(urlParams.get('refs')) || 0; 
+        let savedScore = parseInt(localStorage.getItem('ghost_score_' + userId)) || 0;
+        let savedRefs = parseInt(localStorage.getItem('ghost_refs_' + userId)) || 0;
+
+        let score = (!isNaN(urlScore) && urlScore > savedScore) ? urlScore : (savedScore || urlScore || 0);
+        let refs = Math.max(urlRefs, savedRefs); 
+
+        // INVENTAR BAZASI
+        let myGuns = JSON.parse(localStorage.getItem('loottap_guns_' + userId)) || {}; 
+        let myMats = JSON.parse(localStorage.getItem('loottap_mats_' + userId)) || { mini: 0, big: 0 };
+        
+        const GUNS_DB = {
+            'pan': { name: 'Pan (Roast)', icon: '🍳', max: 3, tier: 3 },
+            'machete': { name: 'Machete (Dragonbone)', icon: '🔪', max: 3, tier: 3 },
+            'cross': { name: 'Crossbow (Nightmare)', icon: '🏹', max: 3, tier: 3 },
+            'uzi': { name: 'UZI (Savage)', icon: '🔫', max: 5, tier: 5 },
+            'ump': { name: 'UMP45 (EMP)', icon: '🔫', max: 5, tier: 5 },
+            'vec': { name: 'Vector (Blood Tooth)', icon: '🔫', max: 5, tier: 5 },
+            'akm': { name: 'AKM (Hellfire)', icon: '🔥', max: 7, tier: 7 },
+            'awm': { name: 'AWM (Godzilla)', icon: '🎯', max: 7, tier: 7 },
+            'dp': { name: 'DP-28 (Gilded Jade)', icon: '🔥', max: 7, tier: 7 },
+            'm4g': { name: 'M416 (Glacier)', icon: '🎒', max: 8, tier: 8 },
+            'm4f': { name: 'M416 (Masxaraboz)', icon: '🤡', max: 8, tier: 8 }
+        };
+
+        const UPGRADE_COSTS = {
+            2: { big: 0, mini: 5 },
+            3: { big: 1, mini: 0 },
+            4: { big: 2, mini: 5 },
+            5: { big: 4, mini: 0 },
+            6: { big: 6, mini: 0 },
+            7: { big: 8, mini: 0 },
+            8: { big: 10, mini: 0 }
+        };
+        
+        function updateScoreDisplays() {
+            document.getElementById('score').innerText = score.toLocaleString();
+        }
+        updateScoreDisplays();
+
+        function ghostSave() {
+            localStorage.setItem('ghost_score_' + userId, score);
+            localStorage.setItem('ghost_refs_' + userId, refs); 
+            localStorage.setItem('ghost_last_time_' + userId, Date.now()); 
+            localStorage.setItem('loottap_guns_' + userId, JSON.stringify(myGuns));
+            localStorage.setItem('loottap_mats_' + userId, JSON.stringify(myMats));
+        }
+
+        setInterval(() => { ghostSave(); }, 2000);
+
+        function showToast(message) {
+            const toast = document.getElementById('toastNotification');
+            toast.innerText = message; toast.style.bottom = "80px"; 
+            setTimeout(() => { toast.style.bottom = "-100px"; }, 3000);
+        }
+
+        function switchTab(tabId, element) {
+            document.querySelectorAll('.app-tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+            element.classList.add('active');
+            if(tabId === 'tab-inv') renderInventory();
+        }
+
+        function openModal(modalId) {
+            document.getElementById('overlayBg').style.display = 'block';
+            document.getElementById(modalId).style.display = 'block';
+            setTimeout(() => { 
+                document.getElementById('overlayBg').classList.add('show');
+                document.getElementById(modalId).classList.add('show');
+            }, 10);
+        }
+
+        function closeAllModals() {
+            document.querySelectorAll('.modal').forEach(m => m.classList.remove('show'));
+            document.getElementById('overlayBg').classList.remove('show');
+            setTimeout(() => { 
+                document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+                document.getElementById('overlayBg').style.display = 'none';
+            }, 300);
+        }
+
+        async function getRealTime() {
+            try {
+                let res = await fetch('https://worldtimeapi.org/api/timezone/Etc/UTC');
+                let data = await res.json();
+                return new Date(data.datetime).getTime();
+            } catch (e) { return Date.now(); }
+        }
+
+        async function initPitySystem() {
+            let realTime = await getRealTime();
+            let todayString = new Date(realTime).toDateString(); 
+            let lastPlayedDay = localStorage.getItem('loottap_last_day_' + userId);
+            let consecutiveDays = parseInt(localStorage.getItem('loottap_spin_days_' + userId)) || 1;
+            
+            if (lastPlayedDay && lastPlayedDay !== todayString) {
+                let yesterday = new Date(realTime - 86400000).toDateString();
+                if(lastPlayedDay === yesterday) consecutiveDays += 1; else consecutiveDays = 1;
+            }
+            localStorage.setItem('loottap_spin_days_' + userId, consecutiveDays);
+            
+            let chance = 10 + (consecutiveDays * 2);
+            if (chance > 30) chance = 30;
+            if(document.getElementById('spinChanceText')) {
+                document.getElementById('spinChanceText').innerHTML = `🔥 Katta yutuq foizi: <b>${chance}%</b> (Ketma-ket: ${consecutiveDays} kun)`;
+                document.getElementById('spinChanceBar').style.width = `${chance}%`;
+            }
+            if (lastPlayedDay !== todayString) {
+                localStorage.setItem('loottap_last_day_' + userId, todayString);
+            }
+        }
+        initPitySystem();
+
+        // --- ASOSIY SPIN MANTIG'I ---
+        const spinPrizes = [{ id: 0, name: '300k loot', v: 300000 }, { id: 1, name: '100k loot', v: 100000 }, { id: 2, name: '200k loot', v: 200000 }, { id: 3, name: '100k loot', v: 100000 }, { id: 4, name: '300k loot', v: 300000 }, { id: 5, name: '100k loot', v: 100000 }, { id: 6, name: '200k loot', v: 200000 }, { id: 7, name: '100k loot', v: 100000 }];
+        let isSpinning = false, currentRotation = 0;
+
+        async function startSpin() {
+            if (isSpinning) return;
+            const btn = document.getElementById('spinActionBtn');
+            let nextSpinTime = parseInt(localStorage.getItem('loottap_next_spin_' + userId)) || 0;
+            if(Date.now() < nextSpinTime) return showToast("24 soatda faqat 1 marta!");
+            
+            isSpinning = true; btn.className = "spin-btn-disabled";
+            localStorage.setItem('loottap_next_spin_' + userId, Date.now() + 86400000);
+            
+            let chance = 10; 
+            let randIndex = (Math.random() * 100 <= chance) ? [0, 2, 4, 6][Math.floor(Math.random() * 4)] : [1, 3, 5, 7][Math.floor(Math.random() * 4)];
+            const wheel = document.getElementById('wheel');
+            const targetRotation = Math.ceil(currentRotation / 360) * 360 + (360 * 5) + (90 - (22.5 + (randIndex * 45)) + Math.floor(Math.random() * 30) - 15);
+            wheel.style.transform = `rotate(${targetRotation}deg)`; currentRotation = targetRotation;
+            
+            setTimeout(() => { 
+                score += spinPrizes[randIndex].v; updateScoreDisplays(); ghostSave();
+                showToast(`🎉 Tabriklaymiz! ${spinPrizes[randIndex].name} tushdi!`); isSpinning = false;
+            }, 4000); 
+        }
+
+        // --- CS2 RULETKA VA KEYSLAR ---
+        function getGunsByTier(tier) {
+            let arr = [];
+            for (let k in GUNS_DB) { if (GUNS_DB[k].tier === tier) arr.push(k); }
+            return arr;
+        }
+
+        function addGunToInv(gunId, level = 1) {
+            if (!myGuns[gunId]) myGuns[gunId] = { lvl: level, count: 1 };
+            else if (myGuns[gunId].lvl >= GUNS_DB[gunId].max) myGuns[gunId].count += 1;
+            else if (level > myGuns[gunId].lvl) myGuns[gunId].lvl = level; 
+            else myGuns[gunId].count += 1;
+        }
+
+        function generateStripItems(winningItemHTML) {
+            let html = '';
+            let gunKeys = Object.keys(GUNS_DB);
+            for(let i=1; i<=50; i++) {
+                if(i === 40) {
+                    html += winningItemHTML;
+                } else {
+                    let randId = gunKeys[Math.floor(Math.random() * gunKeys.length)];
+                    let randGun = GUNS_DB[randId];
+                    if(Math.random() > 0.5) {
+                        let fakeLoot = (Math.floor(Math.random() * 5) + 1) + "M Loot";
+                        html += `<div class="cs2-item loot"><div class="cs2-item-icon">💰</div><div class="cs2-item-name">${fakeLoot}</div></div>`;
+                    } else {
+                        html += `<div class="cs2-item tier-${randGun.tier}"><div class="cs2-item-icon">${randGun.icon}</div><div class="cs2-item-name">${randGun.name}</div></div>`;
+                    }
+                }
+            }
+            return html;
+        }
+
+        function openCS2Case(caseId, price) {
+            if (score < price) return showToast("Lootingiz yetarli emas! ❌");
+            score -= price; updateScoreDisplays(); ghostSave();
+
+            const overlay = document.getElementById('cs2Roulette');
+            const strip = document.getElementById('cs2Strip');
+            
+            overlay.style.display = 'flex';
+            strip.style.transition = 'none'; 
+            strip.style.transform = 'translateX(0)'; 
+            
+            let wonItemHTML = "", wonMessage = "", wonValue = 0; 
+            let r = Math.random() * 100;
+            
+            if (caseId === 1) { 
+                if (r < 40) wonValue = 4000000; else if (r < 70) wonValue = 4100000; else if (r < 85) wonValue = 4200000; else if (r < 95) wonValue = 4300000; else if (r < 99) wonValue = 4500000; else wonValue = 6000000; 
+                wonItemHTML = `<div class="cs2-item loot"><div class="cs2-item-icon">💰</div><div class="cs2-item-name">${(wonValue/1000000).toFixed(1)}M</div></div>`;
+                wonMessage = `<div class="drop-item">💰 ${(wonValue/1000000).toFixed(1)}M Loot</div>`;
+            } 
+            else if (caseId >= 2 && caseId <= 5) { 
+                let tier = caseId === 2 ? 3 : (caseId === 3 ? 5 : (caseId === 4 ? 7 : 8));
+                let guns = getGunsByTier(tier);
+                let wonGunId = guns[Math.floor(Math.random() * guns.length)];
+                let db = GUNS_DB[wonGunId];
+                
+                let chanceForMulti = caseId === 2 ? 5 : (caseId === 3 ? 3 : (caseId === 4 ? 1.5 : 0.8));
+                let isMulti = Math.random() * 100 <= chanceForMulti;
+                let dropsCount = isMulti ? (caseId === 5 ? 2 : 3) : 1;
+                
+                for(let i=0; i<dropsCount; i++) addGunToInv(wonGunId);
+                
+                wonItemHTML = `<div class="cs2-item tier-${db.tier}"><div class="cs2-item-icon">${db.icon}</div><div class="cs2-item-name">${db.name}</div></div>`;
+                wonMessage = `<div class="drop-item">🔫 ${db.name} ${dropsCount > 1 ? `(x${dropsCount})` : ''}</div>`;
+            }
+            else if (caseId === 6) { 
+                if (r < 25) wonValue = 5100000; else if (r < 50) wonValue = 5200000; else if (r < 75) wonValue = 5300000; else if (r < 95) wonValue = 5400000; else if (r < 99.8) wonValue = 5500000; 
+                else {
+                    addGunToInv('m4g', 8); 
+                    wonItemHTML = `<div class="cs2-item tier-8"><div class="cs2-item-icon">🎒</div><div class="cs2-item-name">M416 (Glacier)</div></div>`;
+                    wonMessage = `<div class="drop-item" style="border-color:#ffaa00">💎 FULL: M416 (Glacier)</div>`;
+                }
+                if(wonValue > 0) {
+                    wonItemHTML = `<div class="cs2-item loot"><div class="cs2-item-icon">💰</div><div class="cs2-item-name">${(wonValue/1000000).toFixed(1)}M</div></div>`;
+                    wonMessage = `<div class="drop-item">💰 ${(wonValue/1000000).toFixed(1)}M Loot (Tasalli)</div>`;
+                }
+            }
+            else if (caseId === 7) { 
+                if (r < 50) wonValue = 6000000; else if (r < 90) wonValue = 6500000; else if (r < 99.5) wonValue = 7000000;
+                else if (r < 99.9) {
+                    wonItemHTML = `<div class="cs2-item uc-item"><div class="cs2-item-icon">🏆</div><div class="cs2-item-name">60 UC</div></div>`;
+                    wonMessage = `<div class="drop-item" style="border-color:#e74c3c">🏆 60 UC JEKPOT!</div><p style="font-size:12px; color:#8b949e; margin-top:10px;">Adminga skrinshot yuboring</p>`;
+                } else {
+                    wonItemHTML = `<div class="cs2-item uc-item"><div class="cs2-item-icon">🏆</div><div class="cs2-item-name">325 UC</div></div>`;
+                    wonMessage = `<div class="drop-item" style="border-color:#ffaa00">🏆 325 UC MEGA JEKPOT!</div><p style="font-size:12px; color:#8b949e; margin-top:10px;">Adminga skrinshot yuboring</p>`;
+                }
+
+                if(wonValue > 0) {
+                    wonItemHTML = `<div class="cs2-item loot"><div class="cs2-item-icon">💰</div><div class="cs2-item-name">${(wonValue/1000000).toFixed(1)}M</div></div>`;
+                    wonMessage = `<div class="drop-item">💰 ${(wonValue/1000000).toFixed(1)}M Loot (Tasalli)</div>`;
+                }
+            }
+
+            strip.innerHTML = generateStripItems(wonItemHTML);
+
+            setTimeout(() => {
+                strip.style.transition = 'transform 6s cubic-bezier(0.1, 0.8, 0.1, 1)'; 
+                let offset = Math.floor(Math.random() * 80) - 40; 
+                let finalPosition = (39 * 110) + offset;
+                strip.style.transform = `translateX(-${finalPosition}px)`;
+            }, 100);
+
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                if(wonValue > 0) { score += wonValue; updateScoreDisplays(); ghostSave(); }
+                document.getElementById('winContent').innerHTML = wonMessage;
+                openModal('winModal');
+            }, 6500);
+        }
+
+        // --- INVENTAR FUNKSIYALARI ---
+        function renderInventory() {
+            document.getElementById('matMiniCount').innerText = myMats.mini;
+            document.getElementById('matBigCount').innerText = myMats.big;
+            
+            const grid = document.getElementById('invGrid');
+            const empty = document.getElementById('invEmpty');
+            grid.innerHTML = "";
+            
+            let hasGuns = false;
+            for (let id in myGuns) {
+                hasGuns = true;
+                let g = myGuns[id], db = GUNS_DB[id];
+                
+                grid.innerHTML += `
+                <div class="inv-card tier-${db.tier}" onclick="openGunModal('${id}')">
+                    <div style="font-size:35px; margin-bottom:5px;">${db.icon}</div>
+                    <div class="inv-gun-name">${db.name}</div>
+                    <div class="inv-gun-lvl">Lvl ${g.lvl} / ${db.max}</div>
+                    ${g.count > 1 ? `<div class="inv-badge">${g.count-1}</div>` : ''}
+                </div>`;
+            }
+            if (hasGuns) { grid.style.display = "grid"; empty.style.display = "none"; } 
+            else { grid.style.display = "none"; empty.style.display = "block"; }
+        }
+
+        function craftBigMaterial() {
+            if (myMats.mini >= 10) {
+                myMats.mini -= 10; myMats.big += 1;
+                ghostSave(); renderInventory(); showToast("1 ta Katta Material yasaldi! ✅");
+            } else showToast("Kamida 10 ta Kichik Material kerak! ❌");
+        }
+
+        let selectedGunId = null;
+        function openGunModal(id) {
+            selectedGunId = id;
+            let g = myGuns[id], db = GUNS_DB[id];
+            document.getElementById('gmName').innerText = db.name;
+            document.getElementById('gmLvl').innerText = g.lvl;
+            document.getElementById('gmMax').innerText = db.max;
+            document.getElementById('gmCount').innerText = g.count > 1 ? g.count - 1 : 0;
+            
+            document.getElementById('gmDismantleBtn').style.display = g.count > 1 ? "block" : "none";
+            
+            let isMax = g.lvl >= db.max;
+            document.getElementById('gmUpgradeBtn').style.display = isMax ? "none" : "block";
+            document.getElementById('gmClaimBtn').style.display = (isMax && db.tier >= 7) ? "block" : "none";
+
+            if (!isMax) {
+                let cost = UPGRADE_COSTS[g.lvl + 1];
+                document.getElementById('gmCost').innerText = `${cost.big} Kat, ${cost.mini} Kichik`;
+            }
+            openModal('gunModal');
+        }
+
+        function dismantleGun() {
+            let g = myGuns[selectedGunId];
+            if (g.count > 1) {
+                g.count -= 1; myMats.mini += 3; 
+                ghostSave(); renderInventory(); openGunModal(selectedGunId);
+                showToast("Qurol pishirildi! +3 Kichik Material 🔥");
+            }
+        }
+
+        function upgradeGun() {
+            let g = myGuns[selectedGunId];
+            let cost = UPGRADE_COSTS[g.lvl + 1];
+            if (myMats.big >= cost.big && myMats.mini >= cost.mini) {
+                myMats.big -= cost.big; myMats.mini -= cost.mini;
+                g.lvl += 1;
+                ghostSave(); renderInventory(); openGunModal(selectedGunId);
+                showToast(`Muvaffaqiyatli! Qurolingiz Lvl ${g.lvl} ga ko'tarildi! 🎉`);
+            } else {
+                showToast("Kerakli materiallar yetarli emas! ❌");
+            }
+        }
+
+        function claimMaxGunReward() {
+            window.Telegram.WebApp.openTelegramLink(`https://t.me/IbodTapBot?start=withdraw_uc_325_${score}_MAX_WEAPON_REWARD`);
+            showToast("Mukofot so'raldi! Adminga xabar ketdi. 🎁");
+            closeAllModals();
+        }
+
+        // --- PROMOKOD VA KASSA FUNKSIYALARI ---
+        function activatePromo() {
+            let code = document.getElementById('promo-code').value.trim();
+            if (code === "") return showToast("Promokodni kiriting! ⚠️");
+            window.Telegram.WebApp.openTelegramLink(`https://t.me/IbodTapBot?start=promo_${code}`);
+            showToast("Promokod tekshirilmoqda... 🔄");
+        }
+
+        function buyLootPackage(amountUZS) {
+            window.Telegram.WebApp.openTelegramLink(`https://t.me/IbodTapBot?start=buy_${amountUZS}`);
+            showToast("Kassa tekshirilmoqda... 🔄");
+        }
+
+        // --- SHOP VA DO'STLAR FUNKSIYALARI ---
+        let selectedItemPrice = { 'uc': 4200000 };
+        function selectItem(element, price, type) {
+            let parent = element.parentElement;
+            parent.querySelectorAll('.uc-box').forEach(box => box.classList.remove('active'));
+            element.classList.add('active');
+            selectedItemPrice[type] = price;
+        }
+
+        function requestWithdraw(type) {
+            let price = selectedItemPrice[type];
+            let id = document.getElementById('uc-id').value, nick = document.getElementById('uc-nick').value;
+            if (id === "" || nick === "") return showToast("PUBG ID va NIK ni kiriting! ⚠️");
+            if (score >= price) {
+                score -= price; updateScoreDisplays(); ghostSave();
+                let safeNick = nick.replace(/[^a-zA-Z0-9]/g, '') || "Nomsiz";
+                window.Telegram.WebApp.openTelegramLink(`https://t.me/IbodTapBot?start=withdraw_${type}_${price}_${score}_${id}_${safeNick}`);
+                showToast("Xarid qabul qilindi! Tekshirilmoqda... 🔄");
+            } else { showToast("Hisobingizda yetarli loot mavjud emas! ❌"); }
+        }
+
+        let selectedRefCost = { 'uc': {cost: 45, name: "200k Loot"} };
+        function selectRefItem(element, cost, prizeName) {
+            let parent = element.parentElement;
+            parent.querySelectorAll('.ref-box').forEach(box => box.classList.remove('active'));
+            element.classList.add('active');
+            selectedRefCost['uc'] = {cost: cost, name: prizeName};
+        }
+
+        function requestRefWithdraw(type) {
+            let cost = selectedRefCost['uc'].cost;
+            let prizeAmount = parseInt(selectedRefCost['uc'].name.replace("k Loot", "000").replace("M Loot", "000000").replace(".", ""));
+            
+            if (refs < cost) return showToast("Sizda yetarli do'stlar soni mavjud emas! ❌");
+            if (score < 5000000) return showToast("QOIDANI O'QING: Hisobingizda 5 mln loot bo'lishi shart! ⚠️");
+
+            showToast("Tekshirilmoqda... Botingizga xabar boradi! 🔄");
+            setTimeout(() => { window.Telegram.WebApp.openTelegramLink(`https://t.me/IbodTapBot?start=refwithdraw_LOOT_${cost}_${prizeAmount}_0`); }, 500);
+        }
+
+        async function requestTransfer() {
+            let targetId = document.getElementById('transfer-target-id').value, amount = parseInt(document.getElementById('transfer-amount').value);
+            if (!targetId || isNaN(amount)) return showToast("ID raqam va miqdorni to'g'ri kiriting! ⚠️");
+            if (targetId == userId) return showToast("O'zingizga loot o'tkaza olmaysiz! ❌");
+            if (amount < 100000 || amount > 500000) return showToast("Miqdor 100k dan 500k gacha bo'lishi kerak! ❌");
+            let realTime = await getRealTime(), todayString = new Date(realTime).toDateString();
+            if (localStorage.getItem('loottap_last_transfer_' + userId) === todayString) return showToast("Siz bugun limitdan foydalandingiz! ⏳");
+            if (score >= amount) {
+                score -= amount; updateScoreDisplays(); localStorage.setItem('loottap_last_transfer_' + userId, todayString); ghostSave();
+                window.Telegram.WebApp.openTelegramLink(`https://t.me/IbodTapBot?start=transfer_${targetId}_${amount}`);
+                showToast("O'tkazma jo'natildi! 💸");
+            } else { showToast("Hisobingizda yetarli loot mavjud emas! ❌"); }
+        }
+
+        function copyRefLink() {
+            let shareText = `🎮 PUBG UC ishlash endi juda oson!\nBot orqali Loot to'plang va ularni UC ga almashtiring 💎\n\nKiring va sovg'a oling! 👇`;
+            let shareUrl = `https://t.me/share/url?url=${encodeURIComponent('https://t.me/IbodTapBot?start=ref_'+userId)}&text=${encodeURIComponent(shareText)}`;
+            if (tg && tg.openTelegramLink) tg.openTelegramLink(shareUrl); else window.open(shareUrl, '_blank');
+        }
+
+        // --- VAZIFALAR FUNKSIYALARI ---
+        async function loadDynamicTasks() {
+            try {
+                let response = await fetch('http://212.43.146.114:10000/channels.json?t=' + Date.now());
+                let channels = await response.json();
+                let container = document.getElementById('tasks-container');
+                let existingHtml = container.innerHTML;
+                let newHtml = "";
+                
+                channels.forEach((ch, i) => {
+                    if(ch.id.toLowerCase().includes('sheyx')) return;
+                    let taskId = 'task_dyn_' + i;
+                    let isDone = localStorage.getItem('task_done_' + taskId);
+                    let btnHtml = isDone ? 
+                        `<button class="task-go-btn" style="width: 90px; background-color: #2ea043; color: #fff;" disabled><i class="fa-solid fa-check"></i> Bajarildi</button>` :
+                        `<button class="task-go-btn" style="width: 90px; background-color: #0088cc;" onclick="goToTask('${taskId}', '${ch.url}')">Obuna</button>
+                         <button class="task-go-btn" style="width: 90px; background-color: #30363d; color: #8b949e;" id="check-${taskId}-btn" onclick="checkTask('${taskId}', 60000)">Tekshirish</button>`;
+
+                    newHtml += `
+                    <div class="task-card" id="task-${taskId}">
+                        <div class="task-left">
+                            <div class="task-icon-circle task-icon-telegram"><i class="fa-brands fa-telegram"></i></div>
+                            <div class="task-info"><div class="task-text"><h4>${ch.name}</h4><p>+60,000 loot</p></div></div>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 5px;">${btnHtml}</div>
+                    </div>`;
+                });
+                container.innerHTML = newHtml + existingHtml;
+            } catch(e) {}
+        }
+        loadDynamicTasks();
+
+        let taskClickTimes = {};
+        function goToTask(taskId, url) {
+            taskClickTimes[taskId] = Date.now();
+            if(tg && tg.openLink) tg.openLink(url); else window.open(url, '_blank');
+        }
+
+        function checkTask(taskId, rewardAmount) {
+            if(localStorage.getItem('task_done_' + taskId)) return showToast("Siz bu vazifani allaqachon bajargansiz! ⚠️");
+            if(!taskClickTimes[taskId]) return showToast("Avval 'Obuna' tugmasini bosib, kanalga a'zo bo'ling! ❌");
+            if(Date.now() - taskClickTimes[taskId] < 15000) return showToast("Obuna tasdiqlanmadi! Kamida 15 soniya vaqt ajrating. ⏳");
+            let btn = document.getElementById('check-' + taskId + '-btn');
+            if(btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> Bajarildi'; btn.style.backgroundColor = '#2ea043'; btn.style.color = '#fff'; btn.disabled = true; }
+            score += rewardAmount; updateScoreDisplays(); ghostSave(); localStorage.setItem('task_done_' + taskId, 'true'); 
+            showToast(`Vazifa muvaffaqiyatli tasdiqlandi! +${rewardAmount.toLocaleString()} loot ✅`);
+        }
+    </script>
+</body>
+</html>
