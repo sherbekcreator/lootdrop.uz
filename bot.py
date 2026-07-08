@@ -42,7 +42,7 @@ TOKEN = '8610358967:AAEa0hxqrnKA8z6xfwS5oVF5yXc8l7VwSj4'
 bot = telebot.TeleBot(TOKEN, threaded=True)
 
 WEB_APP_URL = "https://sherbekcreator.github.io/lootdrop.uz/"
-START_IMAGE_URL = "https://raw.githubusercontent.com/sherbekcreator/loottap-bot/main/banner.jpg"
+
 
 # SIZNING UZCARD / HUMO RAQAMINGIZ (KASSA UCHUN)
 UZCARD_NUMBER = "8600 1234 5678 9012"
